@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🚗 Driver — Nabz-Tech Eats</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="theme-color" content="#9b59b6">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        html, body { overflow-x: hidden; }
+        body {
+            background: #1e1e2e;
+            color: #fff;
+            min-height: 100vh;
+            padding-bottom: 20px;
+        }
+
+        /* ===== LOGIN ===== */
+        #loginScreen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2c2c44 100%);
+        }
+        .login-box {
+            background: #2c2c44;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            border-top: 5px solid #9b59b6;
+        }
+        .login-box h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 6px;
+            font-size: 1.6em;
+        }
+        .login-box .subtitle {
+            text-align: center;
+            color: #a0a0b8;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #d0d0e0;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #3a3a55;
+            border-radius: 10px;
+            font-size: 1em;
+            background: #1e1e2e;
+            color: #fff;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            border-color: #9b59b6;
+            outline: none;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .login-btn:hover { background: #8e44ad; }
+        .login-btn:disabled { background: #555; cursor: not-allowed; }
+        .error-msg {
+            color: #ff6b6b;
+            font-size: 0.9em;
+            min-height: 22px;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* ===== MAIN APP ===== */
+        #appScreen {
+            display: none;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2c2c44;
+            padding: 15px 20px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .topbar .driver-name {
+            font-weight: 600;
+            color: #fff;
+            font-size: 0.95em;
+        }
+        .topbar .driver-name i { color: #9b59b6; margin-right: 6px; }
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        .logout-btn:hover { background: #c0392b; }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #2c2c44;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            border-left: 4px solid #9b59b6;
+        }
+        .stat-box .num {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #9b59b6;
+        }
+        .stat-box .lbl {
+            font-size: 0.75em;
+            color: #a0a0b8;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-left: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title .refresh-btn {
+            margin-left: auto;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .order-card {
+            background: #2c2c44;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border-left: 5px solid #9b59b6;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #3a3a55;
+        }
+        .order-id {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #fff;
+        }
+        .order-id span {
+            color: #9b59b6;
+        }
+        .order-total {
+            background: #27ae60;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .order-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            color: #d0d0e0;
+            font-size: 0.92em;
+        }
+        .order-row i {
+            color: #9b59b6;
+            width: 20px;
+            text-align: center;
+            font-size: 1.05em;
+        }
+        .order-row a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        .order-row .items-list {
+            line-height: 1.6;
+            color: #e0e0f0;
+        }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .action-btn {
+            padding: 14px 12px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.92em;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .action-btn:active { transform: scale(0.97); }
+        .btn-navigate {
+            background: #3498db;
+            grid-column: 1 / -1;
+        }
+        .btn-navigate:hover { background: #2980b9; }
+        .btn-call { background: #27ae60; }
+        .btn-call:hover { background: #1e8449; }
+        .btn-deliver { background: #9b59b6; }
+        .btn-deliver:hover { background: #8e44ad; }
+
+        .empty-state {
+            background: #2c2c44;
+            border-radius: 14px;
+            padding: 60px 20px;
+            text-align: center;
+            color: #a0a0b8;
+        }
+        .empty-state i {
+            font-size: 3.5em;
+            color: #4a4a6a;
+            margin-bottom: 15px;
+            display: block;
+        }
+        .empty-state p {
+            font-size: 1em;
+            margin-bottom: 6px;
+        }
+        .empty-state .sub {
+            font-size: 0.85em;
+            color: #7070a0;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            left: 20px;
+            max-width: 400px;
+            margin-left: auto;
+            background: #27ae60;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            z-index: 9999;
+            font-weight: 600;
+            font-size: 0.95em;
+            text-align: center;
+        }
+
+        .confirm-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            padding: 20px;
+        }
+        .confirm-box {
+            background: #2c2c44;
+            border-radius: 16px;
+            padding: 30px 25px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            border-top: 5px solid #9b59b6;
+        }
+        .confirm-box h2 {
+            color: #fff;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+        }
+        .confirm-box p {
+            color: #a0a0b8;
+            font-size: 0.95em;
+            margin-bottom: 22px;
+            line-height: 1.4;
+        }
+        .confirm-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .confirm-btns button {
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .confirm-yes { background: #27ae60; color: white; }
+        .confirm-no { background: #555; color: white; }
+
+        .pull-indicator {
+            text-align: center;
+            color: #7070a0;
+            font-size: 0.8em;
+            padding: 8px 0;
+        }
+
+        @media (max-width: 480px) {
+            .topbar { padding: 12px 16px; }
+            .topbar .driver-name { font-size: 0.88em; }
+            .action-row { gap: 8px; }
+            .action-btn { padding: 12px 10px; font-size: 0.85em; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen">
+    <div class="login-box">
+        <h1>🚗 Driver Login</h1>
+        <p class="subtitle">Nabz-Tech Eats Delivery</p>
+
+        <div class="form-group">
+            <label><i class="fas fa-user"></i> Username</label>
+            <input type="text" id="loginUsername" placeholder="Your driver username" autocomplete="username">
+        </div>
+        <div class="form-group">
+            <label><i class="fas fa-lock"></i> Password</label>
+            <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
+        </div>
+
+        <button class="login-btn" id="loginBtn" onclick="doLogin()">
+            <i class="fas fa-sign-in-alt"></i> Sign In
+        </button>
+
+        <div class="error-msg" id="loginError"></div>
+    </div>
+</div>
+
+<!-- ===== APP SCREEN ===== -->
+<div id="appScreen">
+    <div class="topbar">
+        <div class="driver-name">
+            <i class="fas fa-motorcycle"></i>
+            <span id="driverName">Driver</span>
+        </div>
+        <button class="logout-btn" onclick="doLogout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-box">
+            <div class="num" id="activeCount">0</div>
+            <div class="lbl">ACTIVE DELIVERIES</div>
+        </div>
+        <div class="stat-box">
+            <div class="num" id="totalCash">BD 0</div>
+            <div class="lbl">CASH TO COLLECT</div>
+        </div>
+    </div>
+
+    <div class="section-title">
+        <i class="fas fa-box"></i> My Deliveries
+        <button class="refresh-btn" onclick="loadOrders(true)">
+            <i class="fas fa-sync"></i> Refresh
+        </button>
+    </div>
+
+    <div id="ordersContainer">
+        <div class="pull-indicator">Loading...</div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+var API = 'https://api.nabztech.com/api';
+var refreshTimer = null;
+
+// ============================================================
+// BOOT
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Enter key submits login
+    document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') doLogin();
+    });
+
+    // Auto-login if token exists
+    var token = localStorage.getItem('driverToken');
+    if (token) {
+        showApp();
+    }
+});
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+function doLogin() {
+    var username = document.getElementById('loginUsername').value.trim();
+    var password = document.getElementById('loginPassword').value;
+    var errorEl = document.getElementById('loginError');
+    var btn = document.getElementById('loginBtn');
+
+    errorEl.textContent = '';
+
+    if (!username || !password) {
+        errorEl.textContent = '❌ Enter username and password';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+
+    fetch(API + '/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+    })
+    .then(function(res) {
+        return res.json().then(function(d) { return { ok: res.ok, status: res.status, data: d }; });
+    })
+    .then(function(result) {
+        if (!result.ok) {
+            errorEl.textContent = '❌ ' + (result.data.error || 'Invalid credentials');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+            return;
+        }
+
+        // Check the role
+        var token = result.data.token;
+        var payload;
+        try {
+            payload = JSON.parse(atob(token.split('.')[1]));
+        } catch (e) {
+            errorEl.textContent = '❌ Invalid token';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+            return;
+        }
+
+        if (payload.role !== 'driver') {
+            errorEl.textContent = '❌ This account is not a driver';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+            return;
+        }
+
+        // Success
+        localStorage.setItem('driverToken', token);
+        localStorage.setItem('driverName', result.data.username);
+        document.getElementById('loginPassword').value = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+        showApp();
+    })
+    .catch(function(err) {
+        console.error('Login error:', err);
+        errorEl.textContent = '❌ Network error. Try again.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+    });
+}
+
+function doLogout() {
+    if (!confirm('Log out?')) return;
+    localStorage.removeItem('driverToken');
+    localStorage.removeItem('driverName');
+    if (refreshTimer) clearInterval(refreshTimer);
+    document.getElementById('appScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+
+    var name = localStorage.getItem('driverName') || 'Driver';
+    document.getElementById('driverName').textContent = name;
+
+    loadOrders();
+
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(function() { loadOrders(false); }, 10000);
+}
+
+// ============================================================
+// AUTH-FETCH HELPER
+// ============================================================
+function authFetch(url, options) {
+    options = options || {};
+    options.headers = options.headers || {};
+    var token = localStorage.getItem('driverToken');
+    if (token) options.headers['Authorization'] = 'Bearer ' + token;
+    return fetch(url, options);
+}
+
+// ============================================================
+// LOAD ORDERS
+// ============================================================
+function loadOrders(showFeedback) {
+    authFetch(API + '/driver/orders')
+        .then(function(res) {
+            if (res.status === 401) {
+                // Token expired
+                doLogout();
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(orders) {
+            if (!orders) return;
+            renderOrders(orders);
+            if (showFeedback) showNotification('🔄 Refreshed');
+        })
+        .catch(function(err) {
+            console.error('Load orders error:', err);
+            document.getElementById('ordersContainer').innerHTML =
+                '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Could not load orders</p><p class="sub">Check your connection</p></div>';
+        });
+}
+
+// ============================================================
+// RENDER ORDERS
+// ============================================================
+function renderOrders(orders) {
+    var container = document.getElementById('ordersContainer');
+    var countEl = document.getElementById('activeCount');
+    var cashEl = document.getElementById('totalCash');
+
+    if (!orders || orders.length === 0) {
+        container.innerHTML =
+            '<div class="empty-state">' +
+                '<i class="fas fa-box-open"></i>' +
+                '<p>No active deliveries</p>' +
+                '<p class="sub">New orders will appear here automatically</p>' +
+            '</div>';
+        countEl.textContent = '0';
+        cashEl.textContent = 'BD 0';
+        return;
+    }
+
+    // Count and cash total
+    var totalCash = 0;
+    orders.forEach(function(o) {
+        if (o.payment_method === 'Cash on Delivery') {
+            totalCash += parseFloat(o.total) || 0;
+        }
+    });
+    countEl.textContent = orders.length;
+    cashEl.textContent = 'BD ' + totalCash.toFixed(2);
+
+    var html = '';
+    orders.forEach(function(order) {
+        var itemsText = '';
+        // Items come as empty array — we'll fetch separately if needed
+        // For now show a simple line
+        var payMethod = order.payment_method || 'Cash on Delivery';
+        var payIcon = payMethod === 'Cash on Delivery' ? '💵' : '💳';
+
+        // Build navigation URL
+        var navUrl;
+        if (order.latitude && order.longitude) {
+            navUrl = 'https://www.google.com/maps/dir/?api=1&destination=' +
+                     order.latitude + ',' + order.longitude;
+        } else {
+            navUrl = 'https://www.google.com/maps/dir/?api=1&destination=' +
+                     encodeURIComponent(order.customer_address || '');
+        }
+
+        var cleanPhone = (order.customer_phone || '').replace(/[^0-9+]/g, '');
+
+        html +=
+            '<div class="order-card">' +
+                '<div class="order-header">' +
+                    '<div class="order-id">Order <span>#' + order.id + '</span></div>' +
+                    '<div class="order-total">BD ' + parseFloat(order.total).toFixed(2) + '</div>' +
+                '</div>' +
+
+                '<div class="order-row">' +
+                    '<i class="fas fa-user"></i>' +
+                    '<span>' + (order.customer_name || 'Customer') + '</span>' +
+                '</div>' +
+
+                '<div class="order-row">' +
+                    '<i class="fas fa-phone"></i>' +
+                    '<a href="tel:' + cleanPhone + '">' + (order.customer_phone || '-') + '</a>' +
+                '</div>' +
+
+                '<div class="order-row">' +
+                    '<i class="fas fa-map-pin"></i>' +
+                    '<span>' + (order.customer_address || '-') + '</span>' +
+                '</div>' +
+
+                '<div class="order-row">' +
+                    '<i class="fas fa-' + (payMethod === 'Cash on Delivery' ? 'money-bill-wave' : 'credit-card') + '"></i>' +
+                    '<span>' + payIcon + ' ' + payMethod + '</span>' +
+                '</div>' +
+
+                (order.latitude && order.longitude ?
+                    '<div class="order-row">' +
+                        '<i class="fas fa-check-circle" style="color:#27ae60;"></i>' +
+                        '<span style="color:#27ae60; font-size:0.85em;">📍 GPS pin available</span>' +
+                    '</div>'
+                    :
+                    '<div class="order-row">' +
+                        '<i class="fas fa-info-circle" style="color:#f39c12;"></i>' +
+                        '<span style="color:#f39c12; font-size:0.85em;">No GPS — using address text</span>' +
+                    '</div>'
+                ) +
+
+                '<div class="action-row">' +
+                    '<a class="action-btn btn-navigate" href="' + navUrl + '" target="_blank">' +
+                        '<i class="fas fa-location-arrow"></i> Navigate' +
+                    '</a>' +
+                    '<a class="action-btn btn-call" href="tel:' + cleanPhone + '">' +
+                        '<i class="fas fa-phone"></i> Call' +
+                    '</a>' +
+                    '<button class="action-btn btn-deliver" onclick="confirmDelivered(' + order.id + ')">' +
+                        '<i class="fas fa-check"></i> Delivered' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+// ============================================================
+// MARK DELIVERED
+// ============================================================
+function confirmDelivered(orderId) {
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirmOverlay';
+    overlay.innerHTML =
+        '<div class="confirm-box">' +
+            '<h2>✅ Mark as Delivered?</h2>' +
+            '<p>Order <strong>#' + orderId + '</strong><br>Confirming means the food has reached the customer.</p>' +
+            '<div class="confirm-btns">' +
+                '<button class="confirm-no" onclick="closeConfirm()">Cancel</button>' +
+                '<button class="confirm-yes" onclick="markDelivered(' + orderId + ')">Yes, Delivered</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+function closeConfirm() {
+    var el = document.getElementById('confirmOverlay');
+    if (el) el.remove();
+}
+
+function markDelivered(orderId) {
+    closeConfirm();
+
+    authFetch(API + '/driver/orders/' + orderId + '/delivered', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        if (!result.ok) {
+            alert('❌ ' + (result.data.error || 'Failed to mark delivered'));
+            return;
+        }
+        showNotification('🎉 Order #' + orderId + ' delivered!');
+        loadOrders(false);
+    })
+    .catch(function(err) {
+        console.error('Mark delivered error:', err);
+        alert('❌ Network error');
+    });
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+function showNotification(message) {
+    var existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+    var div = document.createElement('div');
+    div.className = 'notification';
+    div.textContent = message;
+    document.body.appendChild(div);
+    setTimeout(function() { div.remove(); }, 2500);
+}
+</script>
+</body>
+</html>
