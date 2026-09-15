@@ -594,16 +594,16 @@ function authFetch(url, options) {
 // NAVIGATION URL — opens native Google Maps app on phone
 // ============================================================
 function getNavigationUrl(lat, lng, address) {
+    // 1. If we have coordinates (most accurate)
     if (lat && lng) {
-        return 'https://www.google.com/maps/dir/?api=1' +
-               '&destination=' + lat + ',' + lng +
-               '&travelmode=driving' +
-               '&dir_action=navigate';
+        // Use the simpler maps.google.com format.
+        // This is the most reliable for opening the native app [citation:11].
+        return 'https://maps.google.com/?daddr=' + lat + ',' + lng;
     }
-    return 'https://www.google.com/maps/dir/?api=1' +
-           '&destination=' + encodeURIComponent(address || '') +
-           '&travelmode=driving' +
-           '&dir_action=navigate';
+    
+    // 2. Fallback: use the address text if no coordinates
+    // This also uses the more compatible format.
+    return 'https://maps.google.com/?daddr=' + encodeURIComponent(address || '');
 }
 
 // ============================================================
