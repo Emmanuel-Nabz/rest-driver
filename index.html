@@ -739,17 +739,17 @@ function renderOrders(orders) {
 
                 '<div class="order-row">' +
                     '<i class="fas fa-user"></i>' +
-                    '<span>' + (order.customer_name || 'Customer') + '</span>' +
+                    '<span>' + escapeHtml(order.customer_name || 'Customer') + '</span>' +
                 '</div>' +
 
                 '<div class="order-row">' +
                     '<i class="fas fa-phone"></i>' +
-                    '<a href="tel:' + cleanPhone + '">' + (order.customer_phone || '-') + '</a>' +
+                   '<a href="tel:' + cleanPhone + '">' + escapeHtml(order.customer_phone || '-') + '</a>' +
                 '</div>' +
 
                 '<div class="order-row">' +
                     '<i class="fas fa-map-pin"></i>' +
-                    '<span>' + (order.customer_address || '-') + '</span>' +
+                   '<span>' + escapeHtml(order.customer_address || '-') + '</span>' +
                 '</div>' +
 
                 '<div class="order-row">' +
