@@ -594,18 +594,19 @@ function authFetch(url, options) {
 // NAVIGATION URL — opens native Google Maps app on phone
 // ============================================================
 function getNavigationUrl(lat, lng, address) {
-    // 1. If we have coordinates (most accurate)
     if (lat && lng) {
-        // Use the simpler maps.google.com format.
-        // This is the most reliable for opening the native app [citation:11].
+        // Universal 'geo:' scheme — Android asks which app to use
+        // (Google Maps, Petal Maps, Waze, etc.)
+        var isAndroid = /Android/.test(navigator.userAgent);
+        if (isAndroid) {
+            return 'geo:' + lat + ',' + lng + '?q=' + lat + ',' + lng + '(Destination)';
+        }
+        // iOS fallback — Google Maps app opens reliably
         return 'https://maps.google.com/?daddr=' + lat + ',' + lng;
     }
-    
-    // 2. Fallback: use the address text if no coordinates
-    // This also uses the more compatible format.
+    // Fallback: search by address text (opens in browser)
     return 'https://maps.google.com/?daddr=' + encodeURIComponent(address || '');
 }
-
 // ============================================================
 // PAYMENT STATUS HELPER
 // ============================================================
