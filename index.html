@@ -267,10 +267,6 @@
             color: #3498db;
             text-decoration: none;
         }
-        .order-row .items-list {
-            line-height: 1.6;
-            color: #e0e0f0;
-        }
 
         .action-row {
             display: grid;
@@ -301,8 +297,27 @@
         .btn-navigate:hover { background: #2980b9; }
         .btn-call { background: #27ae60; }
         .btn-call:hover { background: #1e8449; }
-        .btn-deliver { background: #9b59b6; }
+        .btn-eta { background: #f39c12; }
+        .btn-eta:hover { background: #d68910; }
+        .btn-eta.done { background: #7f8c8d; }
+        .btn-deliver {
+            background: #9b59b6;
+            grid-column: 1 / -1;
+        }
         .btn-deliver:hover { background: #8e44ad; }
+
+        .eta-option {
+            padding: 12px 8px;
+            border: none;
+            border-radius: 10px;
+            background: #9b59b6;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .eta-option:hover { background: #8e44ad; }
 
         .empty-state {
             background: #2c2c44;
@@ -591,22 +606,15 @@ function authFetch(url, options) {
 }
 
 // ============================================================
-// NAVIGATION URL — opens native Google Maps app on phone
+// NAVIGATION URL — Google Maps
 // ============================================================
 function getNavigationUrl(lat, lng, address) {
     if (lat && lng) {
-        // Universal 'geo:' scheme — Android asks which app to use
-        // (Google Maps, Petal Maps, Waze, etc.)
-        var isAndroid = /Android/.test(navigator.userAgent);
-        if (isAndroid) {
-            return 'geo:' + lat + ',' + lng + '?q=' + lat + ',' + lng + '(Destination)';
-        }
-        // iOS fallback — Google Maps app opens reliably
         return 'https://maps.google.com/?daddr=' + lat + ',' + lng;
     }
-    // Fallback: search by address text (opens in browser)
     return 'https://maps.google.com/?daddr=' + encodeURIComponent(address || '');
 }
+
 // ============================================================
 // PAYMENT STATUS HELPER
 // ============================================================
@@ -625,7 +633,6 @@ function getPaymentInfo(method) {
         };
     }
 
-    // Everything else is treated as already paid
     var methodLabel = method || 'Paid Online';
     var icon = '💳';
     if (m.indexOf('benefit') !== -1) { icon = '📱'; methodLabel = 'Benefit Pay'; }
@@ -711,6 +718,12 @@ function renderOrders(orders) {
             ? 'COLLECT BD ' + orderTotal.toFixed(2) + ' IN CASH'
             : pay.bannerText;
 
+        // ETA button state
+        var etaBtnClass = order.eta_minutes ? 'btn-eta done' : 'btn-eta';
+        var etaBtnLabel = order.eta_minutes
+            ? '⏱️ ' + order.eta_minutes + ' min'
+            : 'Set ETA';
+
         html +=
             '<div class="order-card">' +
                 '<div class="order-header">' +
@@ -763,6 +776,9 @@ function renderOrders(orders) {
                     '<a class="action-btn btn-call" href="tel:' + cleanPhone + '">' +
                         '<i class="fas fa-phone"></i> Call' +
                     '</a>' +
+                    '<button class="action-btn ' + etaBtnClass + '" onclick="openEtaPicker(' + order.id + ')">' +
+                        '<i class="fas fa-clock"></i> ' + etaBtnLabel +
+                    '</button>' +
                     '<button class="action-btn btn-deliver" onclick="confirmDelivered(' + order.id + ')">' +
                         '<i class="fas fa-check"></i> Delivered' +
                     '</button>' +
@@ -771,6 +787,63 @@ function renderOrders(orders) {
     });
 
     container.innerHTML = html;
+}
+
+// ============================================================
+// ETA PICKER
+// ============================================================
+function openEtaPicker(orderId) {
+    var options = [5, 10, 15, 20, 25, 30, 40, 50, 60];
+
+    var html = '<div class="confirm-box">' +
+        '<h2>⏱️ How many minutes to arrive?</h2>' +
+        '<p>Check Google Maps and enter the ETA shown.</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">';
+
+    options.forEach(function(min) {
+        html += '<button class="eta-option" onclick="submitEta(' + orderId + ',' + min + ')">' + min + ' min</button>';
+    });
+
+    html += '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+            '<input type="number" id="customEta" placeholder="Other" min="1" max="240" style="flex:1;padding:12px;border-radius:10px;border:2px solid #3a3a55;background:#1e1e2e;color:#fff;font-size:1em;">' +
+            '<button class="eta-option" style="padding:12px 20px;" onclick="submitEta(' + orderId + ', parseInt(document.getElementById(\'customEta\').value))">OK</button>' +
+        '</div>' +
+        '<button class="confirm-no" style="width:100%;padding:12px;border:none;border-radius:12px;color:white;font-weight:600;cursor:pointer;" onclick="closeConfirm()">Cancel</button>' +
+    '</div>';
+
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirmOverlay';
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+}
+
+function submitEta(orderId, minutes) {
+    if (!minutes || minutes < 1 || minutes > 240) {
+        alert('Enter a number between 1 and 240');
+        return;
+    }
+
+    authFetch(API + '/driver/orders/' + orderId + '/eta', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eta_minutes: minutes })
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        if (!result.ok) {
+            alert('❌ ' + (result.data.error || 'Failed'));
+            return;
+        }
+        closeConfirm();
+        showNotification('⏱️ Customer notified — ' + minutes + ' minutes');
+        loadOrders(false);
+    })
+    .catch(function(err) {
+        console.error('ETA error:', err);
+        alert('❌ Network error');
+    });
 }
 
 // ============================================================
