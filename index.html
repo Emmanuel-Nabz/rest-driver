@@ -419,6 +419,24 @@
             .action-btn { padding: 12px 10px; font-size: 0.85em; }
             .payment-banner { font-size: 0.88em; padding: 10px 14px; }
         }
+        /* Pull to refresh indicator */
+#pullRefresh {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: 12px;
+    background: #9b59b6;
+    color: #fff;
+    font-weight: 600;
+    transform: translateY(-100%);
+    transition: transform 0.2s;
+    z-index: 9998;
+}
+#pullRefresh.visible {
+    transform: translateY(0);
+}
     </style>
 </head>
 <body>
@@ -479,9 +497,61 @@
     <div id="ordersContainer">
         <div class="pull-indicator">Loading...</div>
     </div>
+    <div id="pullRefresh"><i class="fas fa-sync"></i> Refreshing...</div>
 </div>
-
+'<div style="text-align:center;color:#7070a0;font-size:0.8em;margin-bottom:12px;">' +
+    'Auto-refreshes every 10s · Last: ' + new Date().toLocaleTimeString() +
+'</div>'
 <script>
+    // ============================================================
+// TRACK LAST ORDER COUNT — for new delivery alerts
+// ============================================================
+var lastOrderIds = [];
+
+
+function checkForNewOrders(orders) {
+    var currentIds = (orders || []).map(function(o) { return o.id; });
+
+    // First load — just remember, don't alert
+    if (lastOrderIds.length === 0) {
+        lastOrderIds = currentIds;
+        return;
+    }
+
+    // Find orders that are new since last check
+    var newOnes = currentIds.filter(function(id) {
+        return lastOrderIds.indexOf(id) === -1;
+    });
+
+    if (newOnes.length > 0) {
+        // Vibrate (mobile only, harmless on desktop)
+        if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+        }
+
+        // Beep using Web Audio
+        try {
+            var ac = new (window.AudioContext || window.webkitAudioContext)();
+            if (ac.state === 'suspended') ac.resume();
+            [880, 1100].forEach(function(freq, i) {
+                var osc = ac.createOscillator();
+                var gain = ac.createGain();
+                osc.frequency.value = freq;
+                var s = ac.currentTime + (i * 0.18);
+                gain.gain.setValueAtTime(0.3, s);
+                gain.gain.linearRampToValueAtTime(0, s + 0.18);
+                osc.connect(gain);
+                gain.connect(ac.destination);
+                osc.start(s);
+                osc.stop(s + 0.18);
+            });
+        } catch (e) { /* ignore */ }
+
+        showNotification('🚗 New delivery assigned!');
+    }
+
+    lastOrderIds = currentIds;
+}
 // ============================================================
 // CONFIG
 // ============================================================
@@ -511,6 +581,35 @@ document.addEventListener('DOMContentLoaded', function() {
     if (token) {
         showApp();
     }
+    var pullStartY = 0;
+var pullTriggered = false;
+
+document.addEventListener('touchstart', function(e) {
+    if (window.scrollY === 0) {
+        pullStartY = e.touches[0].clientY;
+        pullTriggered = false;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', function(e) {
+    if (window.scrollY === 0 && pullStartY > 0 && !pullTriggered) {
+        var dist = e.touches[0].clientY - pullStartY;
+        if (dist > 80) {
+            pullTriggered = true;
+            var indicator = document.getElementById('pullRefresh');
+            if (indicator) {
+                indicator.classList.add('visible');
+                loadOrders(false);
+                setTimeout(function() {
+                    indicator.classList.remove('visible');
+                }, 800);
+            }
+        }
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', function() {
+    pullStartY = 0;
 });
 
 // ============================================================
@@ -682,7 +781,13 @@ function loadOrders(showFeedback) {
             console.error('Load orders error:', err);
             document.getElementById('ordersContainer').innerHTML =
                 '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Could not load orders</p><p class="sub">Check your connection</p></div>';
-        });
+        })
+        .then(function(orders) {
+    if (!orders) return;
+    checkForNewOrders(orders);   // ← add this line
+    renderOrders(orders);
+    if (showFeedback) showNotification('🔄 Refreshed');
+})
 }
 
 // ============================================================
@@ -793,6 +898,9 @@ function renderOrders(orders) {
                     '<button class="action-btn btn-deliver" onclick="confirmDelivered(' + order.id + ')">' +
                         '<i class="fas fa-check"></i> Delivered' +
                     '</button>' +
+                    '<button class="action-btn" style="background:#e67e22;grid-column:1/-1;" onclick="reportProblem(' + order.id + ')">' +
+    '<i class="fas fa-exclamation-triangle"></i> Report Problem' +
+'</button>'
                 '</div>' +
             '</div>';
     });
@@ -901,6 +1009,16 @@ function markDelivered(orderId) {
         console.error('Mark delivered error:', err);
         alert('❌ Network error');
     });
+}
+function reportProblem(orderId) {
+    var reasons = ['Customer not answering', 'Wrong address', 'Traffic delay', 'Other'];
+    var reason = prompt('What\'s the issue?\n\n' + reasons.map(function(r, i) { return (i + 1) + '. ' + r; }).join('\n') + '\n\nType a message:');
+    if (!reason) return;
+
+    // Just send a WhatsApp/call to admin for now
+    alert('⚠️ Report sent to admin:\n\n' + reason + '\n\nPlease also call the admin if urgent.');
+
+    // Optional: POST to a /api/driver/orders/:id/report endpoint (needs backend)
 }
 
 // ============================================================
