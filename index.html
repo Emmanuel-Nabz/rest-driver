@@ -1060,18 +1060,28 @@ function reportProblem(orderId) {
 
 function submitProblem(orderId, reason) {
     closeConfirm();
-    showNotification('⚠️ Reported: ' + reason);
+    showNotification('Sending report...');
 
-    // Send WhatsApp to admin (optional — replace with your number)
-    // Uncomment to enable:
-    // var adminPhone = '97333310359';
-    // var msg = encodeURIComponent('Problem with order #' + orderId + ': ' + reason);
-    // window.open('https://wa.me/' + adminPhone + '?text=' + msg, '_blank');
-
-    // For now, show alert
-    alert('⚠️ Report noted: ' + reason + '\n\nPlease also contact the admin if urgent.');
+    authFetch(API + '/driver/orders/' + orderId + '/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(function(res) {
+        return res.json().then(function(d) { return { ok: res.ok, data: d }; });
+    })
+    .then(function(result) {
+        if (!result.ok) {
+            alert('❌ ' + (result.data.error || 'Failed to send report'));
+            return;
+        }
+        showNotification('✅ Report sent to admin');
+    })
+    .catch(function(err) {
+        console.error('Report error:', err);
+        alert('❌ Network error — please call the admin directly');
+    });
 }
-
 // ============================================================
 // NOTIFICATION
 // ============================================================
