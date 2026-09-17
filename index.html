@@ -427,7 +427,41 @@
         }
         .confirm-yes { background: #27ae60; color: white; }
         .confirm-no { background: #555; color: white; }
-
+        /* ===== PASSWORD EYE TOGGLE ===== */
+        .pw-wrap {
+            position: relative;
+            display: block;
+        }
+        .pw-wrap input {
+            padding-right: 42px !important;
+        }
+        .pw-toggle {
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1rem;
+            color: #a0a0b8;
+            transition: color 0.15s;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+        .pw-toggle:hover {
+            color: #9b59b6;
+            background: #3a3a55;
+        }
+        .pw-toggle.showing {
+            color: #9b59b6;
+        }
         .pull-indicator {
             text-align: center;
             color: #7070a0;
@@ -510,6 +544,42 @@
 </div>
 
 <script>
+    // ============================================================
+// PASSWORD EYE TOGGLE
+// ============================================================
+function attachPasswordEyes() {
+    var passwordInputs = document.querySelectorAll('input[type="password"]');
+
+    passwordInputs.forEach(function(input) {
+        if (input.dataset.pwWrapped === '1') return;
+        input.dataset.pwWrapped = '1';
+
+        var wrap = document.createElement('div');
+        wrap.className = 'pw-wrap';
+
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pw-toggle';
+        btn.title = 'Show password';
+        btn.innerHTML = '<i class="fas fa-eye"></i>';
+
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.classList.toggle('showing', isPassword);
+            btn.innerHTML = isPassword ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+            btn.title = isPassword ? 'Hide password' : 'Show password';
+        });
+
+        wrap.appendChild(btn);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', attachPasswordEyes);
 // ============================================================
 // CONFIG
 // ============================================================
