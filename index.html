@@ -825,6 +825,32 @@ function _playWebAudioBeep() {
         console.warn('Web Audio beep failed:', e);
     }
 }
+function playAlertBeep() {
+    // 1) Try <audio> element first
+    if (!alertSoundEl) {
+        alertSoundEl = document.getElementById('alertSound');
+    }
+    if (alertSoundEl) {
+        try {
+            alertSoundEl.pause();
+            alertSoundEl.currentTime = 0;
+            alertSoundEl.muted = false;
+            alertSoundEl.volume = 1;
+            var p = alertSoundEl.play();
+            if (p && p.catch) {
+                p.catch(function(e) {
+                    console.warn('audio element blocked, trying Web Audio:', e);
+                    _playWebAudioBeep();
+                });
+            }
+            return;
+        } catch (e) {
+            console.warn('audio element error, trying Web Audio:', e);
+        }
+    }
+    // 2) Fallback
+    _playWebAudioBeep();
+}
 
 // ============================================================
 // BOOT
