@@ -605,6 +605,16 @@
 <!-- ===== PULL TO REFRESH INDICATOR ===== -->
 <div id="pullRefresh"><i class="fas fa-sync"></i> Refreshing...</div>
 <audio id="alertSound" src="alert.mp3" preload="auto"></audio>
+<!-- ===== PUSH NOTIFICATION PROMPT ===== -->
+<div id="pushBanner" style="display:none;background:linear-gradient(135deg,#9b59b6,#8e44ad);color:#fff;padding:12px 16px;border-radius:12px;margin-bottom:15px;align-items:center;gap:12px;box-shadow:0 4px 15px rgba(155,89,182,0.4);position:relative;z-index:100;">
+    <div style="font-size:1.6em;flex-shrink:0;">🔔</div>
+    <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:0.9em;">Enable Notifications</div>
+        <div style="font-size:0.78em;opacity:0.9;margin-top:2px;">Get alerted for new orders even when the app is closed</div>
+    </div>
+    <button onclick="enablePushFromBanner()" style="background:#fff;color:#9b59b6;border:none;padding:9px 16px;border-radius:20px;font-weight:700;cursor:pointer;font-size:0.82em;white-space:nowrap;">Enable</button>
+    <button onclick="dismissPushBanner()" style="background:transparent;color:#fff;border:none;font-size:1.3em;cursor:pointer;padding:0 4px;line-height:1;opacity:0.7;">&times;</button>
+</div>
 <!-- ===== ADD TO HOME SCREEN BANNER ===== -->
 <div id="installBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#2c2c44;border-top:3px solid #9b59b6;padding:16px 18px;z-index:9997;box-shadow:0 -8px 25px rgba(0,0,0,0.5);align-items:center;gap:12px;">
     <img id="installIcon" src="icon-192.png" alt="" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;background:#9b59b6;">
@@ -640,15 +650,25 @@
 
 <!-- ===== APP SCREEN ===== -->
 <div id="appScreen">
-    <div class="topbar">
+     <div class="topbar">
         <div class="driver-name">
             <i class="fas fa-motorcycle"></i>
             <span id="driverName">Driver</span>
         </div>
-    
         <button class="logout-btn" onclick="doLogout()">
             <i class="fas fa-sign-out-alt"></i> Logout
         </button>
+    </div>
+
+    <!-- ===== PUSH NOTIFICATION PROMPT ===== -->
+    <div id="pushBanner" style="display:none;background:linear-gradient(135deg,#9b59b6,#8e44ad);color:#fff;padding:12px 16px;border-radius:12px;margin-bottom:15px;align-items:center;gap:12px;box-shadow:0 4px 15px rgba(155,89,182,0.4);">
+        <div style="font-size:1.6em;flex-shrink:0;">🔔</div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:0.9em;">Enable Notifications</div>
+            <div style="font-size:0.78em;opacity:0.9;margin-top:2px;">Get alerted for new orders even when the app is closed</div>
+        </div>
+        <button onclick="enablePushFromBanner()" style="background:#fff;color:#9b59b6;border:none;padding:9px 16px;border-radius:20px;font-weight:700;cursor:pointer;font-size:0.82em;white-space:nowrap;">Enable</button>
+        <button onclick="dismissPushBanner()" style="background:transparent;color:#fff;border:none;font-size:1.3em;cursor:pointer;padding:0 4px;line-height:1;opacity:0.7;">&times;</button>
     </div>
 
     <!-- TAB SWITCHER -->
@@ -868,7 +888,122 @@ function playAlertBeep() {
     // 2) Fallback
     _playWebAudioBeep();
 }
+// ============================================================
+// WEB PUSH NOTIFICATIONS
+// ============================================================
+var VAPID_PUBLIC_KEY = 'BDhhYMAaPxTUTksvaqeFYYaA3gj65uSre95q_ydHQJdP0kFqNLAtfc5jLbDaidHtCEM0MbOe9IcaG22SljQe8CI';
 
+function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+function pushSupported() {
+    return 'serviceWorker' in navigator
+        && 'PushManager' in window
+        && 'Notification' in window;
+}
+
+function subscribeToPush() {
+    if (!pushSupported()) {
+        console.log('>>> Push not supported on this browser');
+        return Promise.resolve(false);
+    }
+
+    return navigator.serviceWorker.ready.then(function(reg) {
+        // Check existing subscription first
+        return reg.pushManager.getSubscription().then(function(existing) {
+            if (existing) {
+                // Already subscribed — just re-send to backend (in case DB lost it)
+                return sendSubscriptionToServer(existing);
+            }
+
+            // Ask the user for permission
+            return Notification.requestPermission().then(function(permission) {
+                if (permission !== 'granted') {
+                    console.log('>>> Notification permission denied');
+                    return false;
+                }
+
+                // Subscribe
+                return reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                }).then(function(subscription) {
+                    console.log('>>> Subscribed:', subscription.endpoint.substring(0, 60) + '...');
+                    return sendSubscriptionToServer(subscription);
+                });
+            });
+        });
+    }).catch(function(err) {
+        console.warn('>>> Push subscribe failed:', err);
+        return false;
+    });
+}
+
+function sendSubscriptionToServer(subscription) {
+    var token = localStorage.getItem('driverToken');
+    if (!token) {
+        console.log('>>> No driver token — cannot save subscription');
+        return false;
+    }
+
+    return fetch(API + '/driver/push-subscribe', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(subscription)
+    })
+    .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+    })
+    .then(function(data) {
+        console.log('>>> Subscription saved to server');
+        // Hide the banner if it was showing
+        var banner = document.getElementById('pushBanner');
+        if (banner) banner.style.display = 'none';
+        return true;
+    })
+    .catch(function(err) {
+        console.warn('>>> Could not save subscription:', err);
+        return false;
+    });
+}
+
+function showPushBanner() {
+    // Only show if notifications aren't already granted
+    if (!pushSupported()) return;
+    if (Notification.permission === 'granted') return;
+
+    var banner = document.getElementById('pushBanner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+}
+
+function dismissPushBanner() {
+    var banner = document.getElementById('pushBanner');
+    if (banner) banner.style.display = 'none';
+    localStorage.setItem('nabzPushBannerDismissed', '1');
+}
+
+function enablePushFromBanner() {
+    subscribeToPush().then(function(ok) {
+        if (ok) {
+            showNotification('🔔 Notifications enabled');
+        } else {
+            alert('Could not enable notifications. Please check your browser settings and try again.');
+        }
+    });
+}
 // ============================================================
 // BOOT
 // ============================================================
@@ -1045,8 +1180,23 @@ function showApp() {
 
     // Re-unlock audio whenever the app returns to foreground
     document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) unlockAudio();
+        if (!document.hidden) {
+            unlockAudio();
+            // Also re-check push subscription on foreground
+            if (localStorage.getItem('driverToken')) {
+                subscribeToPush().catch(function() {});
+            }
+        }
     });
+
+    // Try to subscribe to push automatically
+    setTimeout(function() {
+        if (!localStorage.getItem('nabzPushBannerDismissed')) {
+            subscribeToPush().then(function(ok) {
+                if (!ok) showPushBanner();
+            });
+        }
+    }, 1500);
 
     // Re-unlock on every tap inside the app — keeps activation fresh
     document.getElementById('appScreen').addEventListener('touchstart', unlockAudio, { passive: true });
