@@ -799,33 +799,6 @@ function unlockAudio() {
     }
 }
 var _alertAC = null;
-
-function playAlertBeep() {
-    // 1) Try <audio> element first
-    if (!alertSoundEl) {
-        alertSoundEl = document.getElementById('alertSound');
-    }
-    if (alertSoundEl) {
-        try {
-            alertSoundEl.currentTime = 0;
-            alertSoundEl.muted = false;
-            alertSoundEl.volume = 1;
-            var p = alertSoundEl.play();
-            if (p && p.catch) {
-                p.catch(function(e) {
-                    console.warn('audio element blocked, trying Web Audio:', e);
-                    _playWebAudioBeep();
-                });
-            }
-            return;
-        } catch (e) {
-            console.warn('audio element error, trying Web Audio:', e);
-        }
-    }
-    // 2) Fallback — Web Audio beep
-    _playWebAudioBeep();
-}
-
 function _playWebAudioBeep() {
     try {
         if (!_alertAC) {
@@ -921,26 +894,7 @@ function checkForNewOrders(orders) {
         lastOrderIds = currentIds;
         if (currentIds.length > 0) {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-            playAlertBeep();function unlockAudio() {
-    if (!alertSoundEl) {
-        alertSoundEl = document.getElementById('alertSound');
-    }
-    if (!alertSoundEl) return;
-    // Play silently once to unlock on mobile, then rewind
-    alertSoundEl.volume = 0;
-    var p = alertSoundEl.play();
-    if (p && p.then) {
-        p.then(function() {
-            alertSoundEl.pause();
-            alertSoundEl.currentTime = 0;
-            alertSoundEl.volume = 1;
-        }).catch(function() {
-            alertSoundEl.volume = 1;
-        });
-    } else {
-        alertSoundEl.volume = 1;
-    }
-}
+            playAlertBeep();
             showNotification('🚗 You have ' + currentIds.length + ' active order(s)');
         }
         return;
@@ -952,14 +906,10 @@ function checkForNewOrders(orders) {
     });
 
     if (newOnes.length > 0) {
-        // Vibrate (mobile only, harmless on desktop)
         if (navigator.vibrate) {
             navigator.vibrate([200, 100, 200, 100, 200]);
         }
-
-        // Beep using the pre-unlocked audio context
         playAlertBeep();
-
         showNotification('🚗 New delivery assigned!');
     }
 
@@ -1035,7 +985,6 @@ function doLogin() {
         btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
     });
 }
-
 function doLogout() {
     if (!confirm('Log out?')) return;
     localStorage.removeItem('driverToken');
@@ -1047,26 +996,14 @@ function doLogout() {
     document.getElementById('loginPassword').value = '';
 }
 
-function playAlertBeep() {
-    if (!alertSoundEl) {
-        alertSoundEl = document.getElementById('alertSound');
-    }
-    if (!alertSoundEl) return;
-    try {
-        alertSoundEl.pause();
-        alertSoundEl.currentTime = 0;
-        alertSoundEl.muted = false;
-        alertSoundEl.volume = 1;
-        var p = alertSoundEl.play();
-        if (p && p.catch) {
-            p.catch(function(e) {
-                console.warn('Beep still blocked:', e.name, e.message);
-            });
-        }
-    } catch (e) {
-        console.warn('Beep error:', e);
-    }
-}
+function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+
+    // Re-unlock audio whenever the app returns to foreground
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) unlockAudio();
+    });
 
     // Re-unlock on every tap inside the app — keeps activation fresh
     document.getElementById('appScreen').addEventListener('touchstart', unlockAudio, { passive: true });
