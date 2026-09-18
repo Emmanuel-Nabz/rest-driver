@@ -908,11 +908,16 @@ function initPullToRefresh() {
 // NEW ORDER DETECTION — vibrate + beep
 // ============================================================
 function checkForNewOrders(orders) {
-    var currentIds = (orders || []).map(function(o) { return o.id; });
+    var currentIds = (orders || []).map(function(o) { return String(o.id); });
 
-    // First load — just remember, don't alert
+    // First load — remember, and beep if there are already orders waiting
     if (lastOrderIds.length === 0) {
         lastOrderIds = currentIds;
+        if (currentIds.length > 0) {
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            playAlertBeep();
+            showNotification('🚗 You have ' + currentIds.length + ' active order(s)');
+        }
         return;
     }
 
