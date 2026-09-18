@@ -770,28 +770,34 @@ function escapeHtml(str) {
 // ============================================================
 var alertSoundEl = null;
 
+var _audioUnlocked = false;
+
 function unlockAudio() {
     if (!alertSoundEl) {
         alertSoundEl = document.getElementById('alertSound');
     }
     if (!alertSoundEl) return;
 
-    // Play muted once to satisfy the browser's "user gesture" requirement
+    // Play muted — this is allowed even without a gesture on most browsers,
+    // and it "blesses" the element so future play() calls work.
     alertSoundEl.muted = true;
+    alertSoundEl.currentTime = 0;
     var p = alertSoundEl.play();
     if (p && p.then) {
         p.then(function() {
             alertSoundEl.pause();
             alertSoundEl.currentTime = 0;
             alertSoundEl.muted = false;
-        }).catch(function() {
+            _audioUnlocked = true;
+            console.log('>>> audio unlocked');
+        }).catch(function(err) {
             alertSoundEl.muted = false;
+            console.log('>>> unlock failed:', err.name);
         });
     } else {
         alertSoundEl.muted = false;
     }
 }
-
 var _alertAC = null;
 
 function playAlertBeep() {
@@ -915,7 +921,26 @@ function checkForNewOrders(orders) {
         lastOrderIds = currentIds;
         if (currentIds.length > 0) {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-            playAlertBeep();
+            playAlertBeep();function unlockAudio() {
+    if (!alertSoundEl) {
+        alertSoundEl = document.getElementById('alertSound');
+    }
+    if (!alertSoundEl) return;
+    // Play silently once to unlock on mobile, then rewind
+    alertSoundEl.volume = 0;
+    var p = alertSoundEl.play();
+    if (p && p.then) {
+        p.then(function() {
+            alertSoundEl.pause();
+            alertSoundEl.currentTime = 0;
+            alertSoundEl.volume = 1;
+        }).catch(function() {
+            alertSoundEl.volume = 1;
+        });
+    } else {
+        alertSoundEl.volume = 1;
+    }
+}
             showNotification('🚗 You have ' + currentIds.length + ' active order(s)');
         }
         return;
@@ -945,7 +970,7 @@ function checkForNewOrders(orders) {
 // LOGIN / LOGOUT
 // ============================================================
 function doLogin() {
-    unlockAudio(); // <-- add this line
+    unlockAudio();
 
     var username = document.getElementById('loginUsername').value.trim();
     var password = document.getElementById('loginPassword').value;
@@ -1022,14 +1047,30 @@ function doLogout() {
     document.getElementById('loginPassword').value = '';
 }
 
-function showApp() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
+function playAlertBeep() {
+    if (!alertSoundEl) {
+        alertSoundEl = document.getElementById('alertSound');
+    }
+    if (!alertSoundEl) return;
+    try {
+        alertSoundEl.pause();
+        alertSoundEl.currentTime = 0;
+        alertSoundEl.muted = false;
+        alertSoundEl.volume = 1;
+        var p = alertSoundEl.play();
+        if (p && p.catch) {
+            p.catch(function(e) {
+                console.warn('Beep still blocked:', e.name, e.message);
+            });
+        }
+    } catch (e) {
+        console.warn('Beep error:', e);
+    }
+}
 
-    // Re-unlock audio whenever the app returns to foreground
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) unlockAudio();
-    });
+    // Re-unlock on every tap inside the app — keeps activation fresh
+    document.getElementById('appScreen').addEventListener('touchstart', unlockAudio, { passive: true });
+    document.getElementById('appScreen').addEventListener('click', unlockAudio);
 
     var name = localStorage.getItem('driverName') || 'Driver';
     document.getElementById('driverName').textContent = name;
