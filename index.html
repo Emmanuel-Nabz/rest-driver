@@ -597,7 +597,7 @@
 
 <!-- ===== PULL TO REFRESH INDICATOR ===== -->
 <div id="pullRefresh"><i class="fas fa-sync"></i> Refreshing...</div>
-
+<audio id="alertSound" src="alert.mp3" preload="auto"></audio>
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="loginScreen">
     <div class="login-box">
@@ -765,41 +765,44 @@ function escapeHtml(str) {
 }
 
 // ============================================================
-// AUDIO UNLOCK (browsers block audio until a user gesture)
+// AUDIO ALERT
 // ============================================================
-var alertAC = null;
+var alertSoundEl = null;
 
 function unlockAudio() {
-    try {
-        if (!alertAC) {
-            alertAC = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (alertAC.state === 'suspended') {
-            alertAC.resume();
-        }
-    } catch (e) { /* ignore */ }
+    if (!alertSoundEl) {
+        alertSoundEl = document.getElementById('alertSound');
+    }
+    if (!alertSoundEl) return;
+    // Play silently once to unlock on mobile, then rewind
+    alertSoundEl.volume = 0;
+    var p = alertSoundEl.play();
+    if (p && p.then) {
+        p.then(function() {
+            alertSoundEl.pause();
+            alertSoundEl.currentTime = 0;
+            alertSoundEl.volume = 1;
+        }).catch(function() {
+            alertSoundEl.volume = 1;
+        });
+    } else {
+        alertSoundEl.volume = 1;
+    }
 }
 
-// Play a loud two-tone beep using the unlocked context
 function playAlertBeep() {
-    if (!alertAC) return;
-    if (alertAC.state === 'suspended') alertAC.resume();
-
-    var now = alertAC.currentTime;
-    [880, 1100, 880].forEach(function(freq, i) {
-        var osc = alertAC.createOscillator();
-        var gain = alertAC.createGain();
-        osc.type = 'square';
-        osc.frequency.value = freq;
-        var start = now + (i * 0.22);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.6, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.20);
-        osc.connect(gain);
-        gain.connect(alertAC.destination);
-        osc.start(start);
-        osc.stop(start + 0.22);
-    });
+    if (!alertSoundEl) {
+        alertSoundEl = document.getElementById('alertSound');
+    }
+    if (!alertSoundEl) return;
+    try {
+        alertSoundEl.currentTime = 0;
+        alertSoundEl.volume = 1;
+        var p = alertSoundEl.play();
+        if (p && p.catch) p.catch(function(e) { console.warn('Beep blocked:', e); });
+    } catch (e) {
+        console.warn('Beep error:', e);
+    }
 }
 
 // ============================================================
