@@ -765,12 +765,54 @@ function escapeHtml(str) {
 }
 
 // ============================================================
+// AUDIO UNLOCK (browsers block audio until a user gesture)
+// ============================================================
+var alertAC = null;
+
+function unlockAudio() {
+    try {
+        if (!alertAC) {
+            alertAC = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (alertAC.state === 'suspended') {
+            alertAC.resume();
+        }
+    } catch (e) { /* ignore */ }
+}
+
+// Play a loud two-tone beep using the unlocked context
+function playAlertBeep() {
+    if (!alertAC) return;
+    if (alertAC.state === 'suspended') alertAC.resume();
+
+    var now = alertAC.currentTime;
+    [880, 1100, 880].forEach(function(freq, i) {
+        var osc = alertAC.createOscillator();
+        var gain = alertAC.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        var start = now + (i * 0.22);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.6, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.20);
+        osc.connect(gain);
+        gain.connect(alertAC.destination);
+        osc.start(start);
+        osc.stop(start + 0.22);
+    });
+}
+
+// ============================================================
 // BOOT
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('loginPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') doLogin();
     });
+
+    // Unlock audio on the very first user tap anywhere
+    document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+    document.addEventListener('click', unlockAudio, { once: true });
 
     var token = localStorage.getItem('driverToken');
     if (token) {
@@ -839,23 +881,8 @@ function checkForNewOrders(orders) {
             navigator.vibrate([200, 100, 200, 100, 200]);
         }
 
-        // Beep using Web Audio
-        try {
-            var ac = new (window.AudioContext || window.webkitAudioContext)();
-            if (ac.state === 'suspended') ac.resume();
-            [880, 1100].forEach(function(freq, i) {
-                var osc = ac.createOscillator();
-                var gain = ac.createGain();
-                osc.frequency.value = freq;
-                var s = ac.currentTime + (i * 0.18);
-                gain.gain.setValueAtTime(0.3, s);
-                gain.gain.linearRampToValueAtTime(0, s + 0.18);
-                osc.connect(gain);
-                gain.connect(ac.destination);
-                osc.start(s);
-                osc.stop(s + 0.18);
-            });
-        } catch (e) { /* ignore */ }
+        // Beep using the pre-unlocked audio context
+        playAlertBeep();
 
         showNotification('🚗 New delivery assigned!');
     }
@@ -867,6 +894,8 @@ function checkForNewOrders(orders) {
 // LOGIN / LOGOUT
 // ============================================================
 function doLogin() {
+    unlockAudio(); // <-- add this line
+
     var username = document.getElementById('loginUsername').value.trim();
     var password = document.getElementById('loginPassword').value;
     var errorEl = document.getElementById('loginError');
@@ -945,6 +974,11 @@ function doLogout() {
 function showApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
+
+    // Re-unlock audio whenever the app returns to foreground
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) unlockAudio();
+    });
 
     var name = localStorage.getItem('driverName') || 'Driver';
     document.getElementById('driverName').textContent = name;
