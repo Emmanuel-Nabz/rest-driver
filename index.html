@@ -1117,9 +1117,11 @@ function renderHistory(orders) {
         var dayLabel = formatHistoryDate(date);
         html += '<div class="history-day-header">' + dayLabel + '</div>';
 
-        byDate[date].forEach(function(o) {
+            byDate[date].forEach(function(o) {
             var isCancelled = o.status === 'Cancelled';
-            var time = new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            var d = new Date(o.created_at);
+            var time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            var fullDate = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
             var total = parseFloat(o.total) || 0;
 
             html += '<div class="history-card' + (isCancelled ? ' cancelled' : '') + '">' +
@@ -1129,6 +1131,7 @@ function renderHistory(orders) {
                         (isCancelled ? 'Cancelled' : 'Delivered') +
                     '</span>' +
                 '</div>' +
+                '<div class="h-detail"><i class="fas fa-calendar"></i> ' + fullDate + '</div>' +
                 '<div class="h-detail"><i class="fas fa-clock"></i> ' + time + '</div>' +
                 '<div class="h-detail"><i class="fas fa-user"></i> ' + escapeHtml(o.customer_name || '-') + '</div>' +
                 '<div class="h-detail"><i class="fas fa-map-pin"></i> ' + escapeHtml(o.customer_address || '-') + '</div>' +
