@@ -462,6 +462,121 @@
         .pw-toggle.showing {
             color: #9b59b6;
         }
+        /* ===== TAB SWITCHER ===== */
+.tab-switcher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: #2c2c44;
+    padding: 6px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.tab-btn {
+    padding: 12px;
+    border: none;
+    background: transparent;
+    color: #a0a0b8;
+    font-weight: 600;
+    font-size: 0.95em;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.tab-btn:hover {
+    color: #fff;
+    background: rgba(155, 89, 182, 0.15);
+}
+
+.tab-btn.active {
+    background: #9b59b6;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(155, 89, 182, 0.4);
+}
+
+/* History cards */
+.history-card {
+    background: #2c2c44;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-left: 4px solid #27ae60;
+    opacity: 0.95;
+}
+.history-card.cancelled {
+    border-left-color: #e74c3c;
+    opacity: 0.75;
+}
+
+.history-card .h-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.history-card .h-order {
+    font-weight: 700;
+    color: #fff;
+    font-size: 0.95em;
+}
+.history-card .h-status {
+    font-size: 0.72em;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.history-card .h-status.delivered {
+    background: rgba(39, 174, 96, 0.2);
+    color: #2ecc71;
+}
+.history-card .h-status.cancelled {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+.history-card .h-detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    font-size: 0.86em;
+    color: #cbd5e1;
+}
+.history-card .h-detail i {
+    width: 16px;
+    color: #7070a0;
+    text-align: center;
+}
+.history-card .h-amount {
+    font-weight: 700;
+    color: #2ecc71;
+    font-size: 1em;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #3a3a55;
+}
+
+.history-day-header {
+    font-size: 0.8em;
+    color: #7070a0;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 18px 0 8px;
+    padding-left: 4px;
+}
+.history-day-header:first-child {
+    margin-top: 0;
+}
         .pull-indicator {
             text-align: center;
             color: #7070a0;
@@ -518,16 +633,28 @@
         </button>
     </div>
 
-    <div class="stats-bar">
-        <div class="stat-box">
-            <div class="num" id="activeCount">0</div>
-            <div class="lbl">ACTIVE DELIVERIES</div>
-        </div>
-        <div class="stat-box">
-            <div class="num" id="totalCash">BD 0</div>
-            <div class="lbl">CASH TO COLLECT</div>
-        </div>
+    <!-- TAB SWITCHER -->
+    <div class="tab-switcher">
+        <button class="tab-btn active" onclick="switchDriverTab('active')" id="tabActiveBtn">
+            <i class="fas fa-motorcycle"></i> Active
+        </button>
+        <button class="tab-btn" onclick="switchDriverTab('history')" id="tabHistoryBtn">
+            <i class="fas fa-history"></i> History
+        </button>
     </div>
+
+    <!-- ===== TAB: ACTIVE DELIVERIES ===== -->
+    <div id="tabActiveContent">
+        <div class="stats-bar">
+            <div class="stat-box">
+                <div class="num" id="activeCount">0</div>
+                <div class="lbl">ACTIVE DELIVERIES</div>
+            </div>
+            <div class="stat-box">
+                <div class="num" id="totalCash">BD 0</div>
+                <div class="lbl">CASH TO COLLECT</div>
+            </div>
+        </div>
 
     <div class="section-title">
         <i class="fas fa-box"></i> My Deliveries
@@ -538,10 +665,47 @@
 
     <div class="last-updated" id="lastUpdated"></div>
 
-    <div id="ordersContainer">
-        <div class="pull-indicator">Loading...</div>
+        <div id="ordersContainer">
+            <div class="pull-indicator">Loading...</div>
+        </div>
     </div>
-</div>
+    <!-- end tab active content -->
+
+    <!-- ===== TAB: HISTORY ===== -->
+    <div id="tabHistoryContent" style="display:none;">
+        <!-- Today's summary -->
+        <div class="stats-bar">
+            <div class="stat-box">
+                <div class="num" id="todayCount">0</div>
+                <div class="lbl">DELIVERED TODAY</div>
+            </div>
+            <div class="stat-box">
+                <div class="num" id="todayCash">BD 0</div>
+                <div class="lbl">CASH COLLECTED</div>
+            </div>
+        </div>
+
+        <!-- History filters -->
+        <div class="section-title">
+            <i class="fas fa-history"></i> Delivery History
+            <button class="refresh-btn" onclick="loadDriverHistory(true)">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <select id="historyDaysFilter" class="filter-select" onchange="loadDriverHistory()" style="flex:1;padding:10px;border-radius:8px;background:#2c2c44;color:#fff;border:2px solid #3a3a55;font-family:inherit;font-size:0.9em;">
+                <option value="1">Today</option>
+                <option value="7" selected>Last 7 days</option>
+                <option value="30">Last 30 days</option>
+            </select>
+        </div>
+
+        <div id="historyContainer">
+            <div class="pull-indicator">Loading history...</div>
+        </div>
+    </div>
+    <!-- end tab history content -->
 
 <script>
     // ============================================================
@@ -790,7 +954,13 @@ function showApp() {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(function() { loadOrders(false); }, 10000);
 }
-
+    // Auto-refresh history every 30s if the history tab is open
+    setInterval(function() {
+        var historyContent = document.getElementById('tabHistoryContent');
+        if (historyContent && historyContent.style.display !== 'none') {
+            loadDriverHistory(false);
+        }
+    }, 30000);
 // ============================================================
 // AUTH-FETCH HELPER
 // ============================================================
@@ -846,7 +1016,142 @@ function getPaymentInfo(method) {
         bannerText: 'ALREADY PAID — DO NOT COLLECT'
     };
 }
+// ============================================================
+// DRIVER TABS
+// ============================================================
+function switchDriverTab(tab) {
+    var activeBtn = document.getElementById('tabActiveBtn');
+    var historyBtn = document.getElementById('tabHistoryBtn');
+    var activeContent = document.getElementById('tabActiveContent');
+    var historyContent = document.getElementById('tabHistoryContent');
 
+    if (tab === 'active') {
+        activeBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        activeContent.style.display = 'block';
+        historyContent.style.display = 'none';
+    } else {
+        activeBtn.classList.remove('active');
+        historyBtn.classList.add('active');
+        activeContent.style.display = 'none';
+        historyContent.style.display = 'block';
+        loadDriverHistory();
+    }
+}
+
+// ============================================================
+// LOAD DELIVERY HISTORY
+// ============================================================
+function loadDriverHistory(showFeedback) {
+    var container = document.getElementById('historyContainer');
+    if (!container) return;
+
+    var days = document.getElementById('historyDaysFilter').value || 7;
+
+    container.innerHTML = '<div class="pull-indicator">Loading history...</div>';
+
+    authFetch(API + '/driver/history?days=' + days)
+        .then(function(res) {
+            if (res.status === 401) {
+                doLogout();
+                return null;
+            }
+            return res.json();
+        })
+        .then(function(orders) {
+            if (!orders) return;
+            renderHistory(orders);
+            if (showFeedback) showNotification('🔄 Refreshed');
+        })
+        .catch(function(err) {
+            console.error('History load error:', err);
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Could not load history</p></div>';
+        });
+}
+
+function renderHistory(orders) {
+    var container = document.getElementById('historyContainer');
+
+    // Calculate today's stats
+    var todayStr = new Date().toISOString().split('T')[0];
+    var todayCount = 0;
+    var todayCash = 0;
+
+    orders.forEach(function(o) {
+        var orderDate = new Date(o.created_at).toISOString().split('T')[0];
+        if (orderDate === todayStr && o.status === 'Delivered') {
+            todayCount++;
+            var payment = (o.payment_method || '').toLowerCase();
+            if (payment === 'cash on delivery' || payment === 'cash' || payment === 'cod') {
+                todayCash += parseFloat(o.total) || 0;
+            }
+        }
+    });
+
+    document.getElementById('todayCount').textContent = todayCount;
+    document.getElementById('todayCash').textContent = 'BD ' + todayCash.toFixed(2);
+
+    // Empty state
+    if (orders.length === 0) {
+        container.innerHTML =
+            '<div class="empty-state">' +
+                '<i class="fas fa-history"></i>' +
+                '<p>No deliveries in this period</p>' +
+                '<p class="sub">Completed deliveries will appear here</p>' +
+            '</div>';
+        return;
+    }
+
+    // Group by date
+    var byDate = {};
+    orders.forEach(function(o) {
+        var date = new Date(o.created_at).toISOString().split('T')[0];
+        if (!byDate[date]) byDate[date] = [];
+        byDate[date].push(o);
+    });
+
+    var dateKeys = Object.keys(byDate).sort().reverse();
+
+    var html = '';
+    dateKeys.forEach(function(date) {
+        var dayLabel = formatHistoryDate(date);
+        html += '<div class="history-day-header">' + dayLabel + '</div>';
+
+        byDate[date].forEach(function(o) {
+            var isCancelled = o.status === 'Cancelled';
+            var time = new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            var total = parseFloat(o.total) || 0;
+
+            html += '<div class="history-card' + (isCancelled ? ' cancelled' : '') + '">' +
+                '<div class="h-header">' +
+                    '<span class="h-order">Order #' + o.id + '</span>' +
+                    '<span class="h-status ' + (isCancelled ? 'cancelled' : 'delivered') + '">' +
+                        (isCancelled ? 'Cancelled' : 'Delivered') +
+                    '</span>' +
+                '</div>' +
+                '<div class="h-detail"><i class="fas fa-clock"></i> ' + time + '</div>' +
+                '<div class="h-detail"><i class="fas fa-user"></i> ' + escapeHtml(o.customer_name || '-') + '</div>' +
+                '<div class="h-detail"><i class="fas fa-map-pin"></i> ' + escapeHtml(o.customer_address || '-') + '</div>' +
+                (isCancelled ? '' : '<div class="h-amount">BD ' + total.toFixed(2) + '</div>') +
+            '</div>';
+        });
+    });
+
+    container.innerHTML = html;
+}
+
+function formatHistoryDate(dateStr) {
+    var date = new Date(dateStr + 'T00:00:00');
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.getTime() === today.getTime()) return '📅 Today';
+    if (date.getTime() === yesterday.getTime()) return '📅 Yesterday';
+
+    return '📅 ' + date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
 // ============================================================
 // LOAD ORDERS
 // ============================================================
