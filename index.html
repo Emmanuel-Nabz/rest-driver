@@ -1000,7 +1000,7 @@ function enablePushFromBanner() {
         if (ok) {
             showNotification('🔔 Notifications enabled');
         } else {
-            alert('Could not enable notifications. Please check your browser settings and try again.');
+            showNotification('⚠️ Could not enable — check browser settings');
         }
     });
 }
@@ -1164,7 +1164,23 @@ function doLogin() {
     });
 }
 function doLogout() {
-    if (!confirm('Log out?')) return;
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirmOverlay';
+    overlay.innerHTML =
+        '<div class="confirm-box">' +
+            '<h2>👋 Log out?</h2>' +
+            '<p>You will need to sign in again to receive new deliveries.</p>' +
+            '<div class="confirm-btns">' +
+                '<button class="confirm-no" onclick="closeConfirm()">Stay Logged In</button>' +
+                '<button class="confirm-yes" onclick="performLogout()">Log Out</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+function performLogout() {
+    closeConfirm();
     localStorage.removeItem('driverToken');
     localStorage.removeItem('driverName');
     if (refreshTimer) clearInterval(refreshTimer);
@@ -1594,7 +1610,7 @@ function openEtaPicker(orderId) {
 
 function submitEta(orderId, minutes) {
     if (!minutes || minutes < 1 || minutes > 240) {
-        alert('Enter a number between 1 and 240');
+        showNotification('⚠️ Enter a number between 1 and 240');
         return;
     }
 
@@ -1606,7 +1622,7 @@ function submitEta(orderId, minutes) {
     .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
     .then(function(result) {
         if (!result.ok) {
-            alert('❌ ' + (result.data.error || 'Failed'));
+            showNotification('❌ ' + (result.data.error || 'Failed to set ETA'));
             return;
         }
         closeConfirm();
@@ -1615,7 +1631,7 @@ function submitEta(orderId, minutes) {
     })
     .catch(function(err) {
         console.error('ETA error:', err);
-        alert('❌ Network error');
+        showNotification('❌ Network error — try again');
     });
 }
 
@@ -1653,7 +1669,7 @@ function markDelivered(orderId) {
     .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
     .then(function(result) {
         if (!result.ok) {
-            alert('❌ ' + (result.data.error || 'Failed to mark delivered'));
+            showNotification('❌ ' + (result.data.error || 'Failed to mark delivered'));
             return;
         }
         showNotification('🎉 Order #' + orderId + ' delivered!');
@@ -1661,7 +1677,7 @@ function markDelivered(orderId) {
     })
     .catch(function(err) {
         console.error('Mark delivered error:', err);
-        alert('❌ Network error');
+        showNotification('❌ Network error — try again');
     });
 }
 
@@ -1706,14 +1722,14 @@ function submitProblem(orderId, reason) {
     })
     .then(function(result) {
         if (!result.ok) {
-            alert('❌ ' + (result.data.error || 'Failed to send report'));
+            showNotification('❌ ' + (result.data.error || 'Failed to send report'));
             return;
         }
         showNotification('✅ Report sent to admin');
     })
     .catch(function(err) {
         console.error('Report error:', err);
-        alert('❌ Network error — please call the admin directly');
+        showNotification('❌ Network error — call admin directly');
     });
 }
 // ============================================================
