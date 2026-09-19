@@ -980,13 +980,19 @@ function sendSubscriptionToServer(subscription) {
 }
 
 function showPushBanner() {
-    // Only show if notifications aren't already granted
     if (!pushSupported()) return;
     if (Notification.permission === 'granted') return;
 
     var banner = document.getElementById('pushBanner');
     if (!banner) return;
     banner.style.display = 'flex';
+
+    // Change button text if permission was denied (they need special steps)
+    var btn = banner.querySelector('button[onclick="enablePushFromBanner()"]');
+    if (btn && Notification.permission === 'denied') {
+        btn.textContent = 'Fix';
+        banner.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+    }
 }
 
 function dismissPushBanner() {
@@ -996,6 +1002,16 @@ function dismissPushBanner() {
 }
 
 function enablePushFromBanner() {
+    if (!pushSupported()) {
+        showNotification('⚠️ Your browser does not support notifications');
+        return;
+    }
+
+    if (Notification.permission === 'denied') {
+        showPermissionDeniedHelp();
+        return;
+    }
+
     subscribeToPush().then(function(ok) {
         if (ok) {
             showNotification('🔔 Notifications enabled');
@@ -1003,6 +1019,43 @@ function enablePushFromBanner() {
             showNotification('⚠️ Could not enable — check browser settings');
         }
     });
+}
+
+function showPermissionDeniedHelp() {
+    var isAndroid = /Android/i.test(navigator.userAgent);
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    var steps = '';
+    if (isAndroid) {
+        steps = '1. Tap the 🔒 lock icon in the address bar<br>' +
+                '2. Tap "Permissions" or "Site settings"<br>' +
+                '3. Set Notifications to <b>Allow</b><br>' +
+                '4. Reload the app';
+    } else if (isIOS) {
+        steps = '1. Open iPhone Settings<br>' +
+                '2. Scroll to Safari<br>' +
+                '3. Tap Advanced → Website Data<br>' +
+                '4. Find driver.nabztech.com → Delete<br>' +
+                '5. Reopen the app from home screen';
+    } else {
+        steps = 'Open your browser settings and allow notifications for this site, then reload.';
+    }
+
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirmOverlay';
+    overlay.innerHTML =
+        '<div class="confirm-box">' +
+            '<h2>🔔 Notifications Blocked</h2>' +
+            '<p style="text-align:left;line-height:1.8;">You previously blocked notifications for this app. To receive order alerts even when the app is closed, you need to allow them again:</p>' +
+            '<div style="background:#1e1e2e;border-radius:10px;padding:14px;text-align:left;font-size:0.85em;line-height:1.8;margin-bottom:20px;color:#d0d0e0;">' +
+                steps +
+            '</div>' +
+            '<div class="confirm-btns" style="grid-template-columns:1fr;">' +
+                '<button class="confirm-yes" onclick="closeConfirm()">Got it</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
 }
 // ============================================================
 // BOOT
@@ -1205,8 +1258,14 @@ function showApp() {
         }
     });
 
-    // Try to subscribe to push automatically
+     // Try to subscribe to push automatically
     setTimeout(function() {
+        // If permission was explicitly denied, show the banner even if dismissed before
+        if (Notification.permission === 'denied') {
+            showPushBanner();
+            return;
+        }
+
         if (!localStorage.getItem('nabzPushBannerDismissed')) {
             subscribeToPush().then(function(ok) {
                 if (!ok) showPushBanner();
