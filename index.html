@@ -786,6 +786,7 @@ document.addEventListener('DOMContentLoaded', attachPasswordEyes);
 // CONFIG
 // ============================================================
 var API = 'https://api.nabztech.com/api';
+var APP_VERSION = '1.0.0';   // bump this when you deploy a new driver app build
 var refreshTimer = null;
 var lastOrderIds = [];
 
@@ -1058,6 +1059,71 @@ function showPermissionDeniedHelp() {
     document.body.appendChild(overlay);
 }
 // ============================================================
+// FORCE UPDATE CHECK
+// ============================================================
+function checkAppVersion() {
+    // Use cache-bust to bypass service worker + browser cache
+    return fetch(API + '/app-version?t=' + Date.now(), { cache: 'no-store' })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            var serverVersion = data.driver;
+            if (!serverVersion) return false;
+
+            if (serverVersion !== APP_VERSION) {
+                console.log('>>> Version mismatch. Local:', APP_VERSION, 'Server:', serverVersion);
+                forceReload();
+                return true;
+            }
+            return false;
+        })
+        .catch(function(err) {
+            // If offline or server down, don't block the app — let it run
+            console.warn('>>> Version check failed:', err.message);
+            return false;
+        });
+}
+
+function forceReload() {
+    // Show a modal so the user knows what's happening
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirmOverlay';
+    overlay.innerHTML =
+        '<div class="confirm-box">' +
+            '<h2>🔄 Updating App</h2>' +
+            '<p>A new version of the driver app is available. The app will reload now to get the latest features and fixes.</p>' +
+            '<div style="text-align:center;margin-top:20px;font-size:2em;">⏳</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+
+    // Clear caches, service worker, and reload
+    var tasks = [];
+
+    if ('caches' in window) {
+        tasks.push(
+            caches.keys().then(function(names) {
+                return Promise.all(names.map(function(name) { return caches.delete(name); }));
+            })
+        );
+    }
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+        tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+                return Promise.all(regs.map(function(r) { return r.update(); }));
+            })
+        );
+    }
+
+    Promise.all(tasks).then(function() {
+        // Hard reload from server, ignoring cache
+        setTimeout(function() {
+            location.reload(true);
+        }, 1500);
+    });
+}
+
+// ============================================================
 // BOOT
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -1070,12 +1136,17 @@ document.addEventListener('DOMContentLoaded', function() {
         document.addEventListener(evt, unlockAudio, { once: true, passive: true });
     });
 
-    var token = localStorage.getItem('driverToken');
-    if (token) {
-        showApp();
-    }
+    // Check for app updates BEFORE anything else
+    checkAppVersion().then(function(shouldStop) {
+        if (shouldStop) return;   // forceReload() already in progress
 
-    initPullToRefresh();
+        var token = localStorage.getItem('driverToken');
+        if (token) {
+            showApp();
+        }
+
+        initPullToRefresh();
+    });
 });
 
 // ============================================================
