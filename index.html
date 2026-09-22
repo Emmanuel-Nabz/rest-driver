@@ -849,6 +849,11 @@ function loadRestaurantInfo() {
         }
         console.log('🏪 Driver restaurant:', data.name, '(' + data.currency + ')');
     })
+            // Re-render in case orders loaded before we knew the currency
+        if (Array.isArray(window._lastOrders)) {
+            renderOrders(window._lastOrders);
+        }
+
     .catch(function(err) { console.warn('restaurant-info failed:', err); });
 }
 
@@ -1413,10 +1418,10 @@ function showApp() {
       var name = localStorage.getItem('driverName') || 'Driver';
     document.getElementById('driverName').textContent = name;
 
-    // Load restaurant info FIRST so currency is correct before rendering
-    loadRestaurantInfo().then(function() {
-        loadOrders();
-    });
+     // Fire both in parallel — loadRestaurantInfo just updates currency/labels,
+    // it doesn't need to block the orders fetch.
+    loadRestaurantInfo();
+    loadOrders();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(function() { loadOrders(false); }, 10000);
@@ -1633,8 +1638,9 @@ function loadOrders(showFeedback) {
             }
             return res.json();
         })
-        .then(function(orders) {
+              .then(function(orders) {
             if (!orders) return;
+            window._lastOrders = orders;      // <-- NEW: cache for re-render
             checkForNewOrders(orders);
             renderOrders(orders);
             updateLastUpdated();
