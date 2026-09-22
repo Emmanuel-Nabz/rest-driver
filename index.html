@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🚗 Driver — Nabz-Eats</title>
+        <title>🚗 Driver</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -628,8 +628,8 @@
 <!-- ===== LOGIN SCREEN ===== -->
 <div id="loginScreen">
     <div class="login-box">
-        <h1>🚗 Driver Login</h1>
-        <p class="subtitle">Nabz-Eats Delivery</p>
+           <h1>🚗 Driver Login</h1>
+        <p class="subtitle">Delivery App</p>
 
         <div class="form-group">
             <label><i class="fas fa-user"></i> Username</label>
@@ -688,8 +688,8 @@
                 <div class="num" id="activeCount">0</div>
                 <div class="lbl">ACTIVE DELIVERIES</div>
             </div>
-            <div class="stat-box">
-                <div class="num" id="totalCash">BD 0</div>
+                       <div class="stat-box">
+                <div class="num" id="totalCash">—</div>
                 <div class="lbl">CASH TO COLLECT</div>
             </div>
         </div>
@@ -717,8 +717,8 @@
                 <div class="num" id="todayCount">0</div>
                 <div class="lbl">DELIVERED TODAY</div>
             </div>
-            <div class="stat-box">
-                <div class="num" id="todayCash">BD 0</div>
+                       <div class="stat-box">
+                <div class="num" id="todayCash">—</div>
                 <div class="lbl">CASH COLLECTED</div>
             </div>
         </div>
@@ -786,9 +786,71 @@ document.addEventListener('DOMContentLoaded', attachPasswordEyes);
 // CONFIG
 // ============================================================
 var API = 'https://api.nabztech.com/api';
-var APP_VERSION = '1.0.0';   // bump this when you deploy a new driver app build
+var APP_VERSION = '1.1.0';   // bumped for currency support
 var refreshTimer = null;
 var lastOrderIds = [];
+
+// ============================================================
+// CURRENCY (per driver's restaurant)
+// ============================================================
+var CURRENCY = 'BD';   // will be loaded from /api/admin/restaurant-info on login
+
+function formatMoney(amount) {
+    var n = parseFloat(amount) || 0;
+    var c = CURRENCY;
+
+    if (c === 'UGX' || c === 'TZS' || c === 'RWF') {
+        return c + ' ' + Math.round(n).toLocaleString('en-US');
+    }
+    if (c === 'BD' || c === 'KWD' || c === 'OMR') {
+        return c + ' ' + n.toFixed(3);
+    }
+    return c + ' ' + n.toFixed(2);
+}
+
+// Per-order currency: uses the order's own restaurant_currency if present,
+// otherwise falls back to the driver's restaurant currency.
+function formatOrderMoney(amount, order) {
+    var c = (order && order.restaurant_currency) ? order.restaurant_currency : CURRENCY;
+    var n = parseFloat(amount) || 0;
+
+    if (c === 'UGX' || c === 'TZS' || c === 'RWF') {
+        return c + ' ' + Math.round(n).toLocaleString('en-US');
+    }
+    if (c === 'BD' || c === 'KWD' || c === 'OMR') {
+        return c + ' ' + n.toFixed(3);
+    }
+    return c + ' ' + n.toFixed(2);
+}
+
+// ============================================================
+// LOAD RESTAURANT INFO (currency, name, logo)
+// ============================================================
+function loadRestaurantInfo() {
+    var token = localStorage.getItem('driverToken');
+    if (!token) return Promise.resolve();
+
+    return fetch(API + '/admin/restaurant-info', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data || data.error) return;
+
+        if (data.currency) CURRENCY = data.currency;
+        if (data.name) {
+            document.title = '🚗 ' + data.name + ' Driver';
+            var nameEl = document.getElementById('driverName');
+            if (nameEl) nameEl.textContent = localStorage.getItem('driverName') + ' · ' + data.name;
+        }
+        if (data.logo_url) {
+            var logo = document.querySelector('.topbar img');
+            if (logo) logo.src = data.logo_url;
+        }
+        console.log('🏪 Driver restaurant:', data.name, '(' + data.currency + ')');
+    })
+    .catch(function(err) { console.warn('restaurant-info failed:', err); });
+}
 
 // ============================================================
 // XSS PROTECTION
@@ -1348,10 +1410,13 @@ function showApp() {
     document.getElementById('appScreen').addEventListener('touchstart', unlockAudio, { passive: true });
     document.getElementById('appScreen').addEventListener('click', unlockAudio);
 
-    var name = localStorage.getItem('driverName') || 'Driver';
+      var name = localStorage.getItem('driverName') || 'Driver';
     document.getElementById('driverName').textContent = name;
 
-    loadOrders();
+    // Load restaurant info FIRST so currency is correct before rendering
+    loadRestaurantInfo().then(function() {
+        loadOrders();
+    });
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(function() { loadOrders(false); }, 10000);
@@ -1489,9 +1554,8 @@ function renderHistory(orders) {
             }
         }
     });
-
-    document.getElementById('todayCount').textContent = todayCount;
-    document.getElementById('todayCash').textContent = 'BD ' + todayCash.toFixed(2);
+        document.getElementById('todayCount').textContent = todayCount;
+    document.getElementById('todayCash').textContent = formatMoney(todayCash);
 
     // Empty state
     if (orders.length === 0) {
@@ -1537,7 +1601,7 @@ function renderHistory(orders) {
                 '<div class="h-detail"><i class="fas fa-clock"></i> ' + time + '</div>' +
                 '<div class="h-detail"><i class="fas fa-user"></i> ' + escapeHtml(o.customer_name || '-') + '</div>' +
                 '<div class="h-detail"><i class="fas fa-map-pin"></i> ' + escapeHtml(o.customer_address || '-') + '</div>' +
-                (isCancelled ? '' : '<div class="h-amount">BD ' + total.toFixed(2) + '</div>') +
+                                (isCancelled ? '' : '<div class="h-amount">' + formatOrderMoney(total, o) + '</div>') +
             '</div>';
         });
     });
@@ -1605,8 +1669,8 @@ function renderOrders(orders) {
                 '<p>No active deliveries</p>' +
                 '<p class="sub">New orders will appear here automatically</p>' +
             '</div>';
-        countEl.textContent = '0';
-        cashEl.textContent = 'BD 0';
+          countEl.textContent = '0';
+        cashEl.textContent = formatMoney(0);
         return;
     }
 
@@ -1618,8 +1682,8 @@ function renderOrders(orders) {
             totalCash += parseFloat(o.total) || 0;
         }
     });
-    countEl.textContent = orders.length;
-    cashEl.textContent = 'BD ' + totalCash.toFixed(2);
+        countEl.textContent = orders.length;
+    cashEl.textContent = formatMoney(totalCash);
 
     var html = '';
     orders.forEach(function(order) {
@@ -1630,8 +1694,8 @@ function renderOrders(orders) {
         var cleanPhone = (order.customer_phone || '').replace(/[^0-9+]/g, '');
 
         // Payment banner text — show amount if cash
-        var bannerText = pay.isCash
-            ? 'COLLECT BD ' + orderTotal.toFixed(2) + ' IN CASH'
+               var bannerText = pay.isCash
+            ? 'COLLECT ' + formatOrderMoney(orderTotal, order) + ' IN CASH'
             : pay.bannerText;
 
         // ETA button state
@@ -1644,7 +1708,7 @@ function renderOrders(orders) {
             '<div class="order-card">' +
                 '<div class="order-header">' +
                     '<div class="order-id">Order <span>#' + order.id + '</span></div>' +
-                    '<div class="order-total">BD ' + orderTotal.toFixed(2) + '</div>' +
+                   '<div class="order-total">' + formatOrderMoney(orderTotal, order) + '</div>' +
                 '</div>' +
 
                 // ===== PAYMENT BANNER =====
