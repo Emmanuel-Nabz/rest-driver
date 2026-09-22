@@ -848,12 +848,12 @@ function loadRestaurantInfo() {
             if (logo) logo.src = data.logo_url;
         }
         console.log('🏪 Driver restaurant:', data.name, '(' + data.currency + ')');
-    })
-            // Re-render in case orders loaded before we knew the currency
+
+        // Re-render in case orders loaded before we knew the currency
         if (Array.isArray(window._lastOrders)) {
             renderOrders(window._lastOrders);
         }
-
+    })
     .catch(function(err) { console.warn('restaurant-info failed:', err); });
 }
 
@@ -1418,23 +1418,23 @@ function showApp() {
       var name = localStorage.getItem('driverName') || 'Driver';
     document.getElementById('driverName').textContent = name;
 
-     // Fire both in parallel — loadRestaurantInfo just updates currency/labels,
+      // Fire both in parallel — loadRestaurantInfo just updates currency/labels,
     // it doesn't need to block the orders fetch.
     loadRestaurantInfo();
     loadOrders();
 
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(function() { loadOrders(false); }, 10000);
-}
-    // Auto-refresh history every 30s if the history tab is open
-    setInterval(function() {
+    refreshTimer = setInterval(function() { loadOrders(false); }, 15000);
+
+    if (window._historyInterval) clearInterval(window._historyInterval);
+    window._historyInterval = setInterval(function() {
+        if (document.hidden) return;
         var historyContent = document.getElementById('tabHistoryContent');
         if (historyContent && historyContent.style.display !== 'none') {
             loadDriverHistory(false);
         }
-    }, 30000);
-// ============================================================
-// AUTH-FETCH HELPER
+    }, 60000);
+}
 // ============================================================
 function authFetch(url, options) {
     options = options || {};
@@ -1656,7 +1656,7 @@ function loadOrders(showFeedback) {
 function updateLastUpdated() {
     var el = document.getElementById('lastUpdated');
     if (el) {
-        el.textContent = 'Auto-refreshes every 10s · Last: ' + new Date().toLocaleTimeString();
+        el.textContent = 'Auto-refreshes every 15s · Last: ' + new Date().toLocaleTimeString();
     }
 }
 
@@ -2023,6 +2023,26 @@ function showNotification(message) {
     document.body.appendChild(div);
     setTimeout(function() { div.remove(); }, 2500);
 }
+// ============================================================
+// VISIBILITY — pause polling when tab is hidden
+// ============================================================
+document.addEventListener('visibilitychange', function() {
+    var hasToken = !!localStorage.getItem('driverToken');
+
+    if (document.hidden) {
+        // Pause
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+    } else if (hasToken) {
+        // Resume — load once immediately, then restart timer
+        loadOrders(false);
+        if (!refreshTimer) {
+            refreshTimer = setInterval(function() { loadOrders(false); }, 15000);
+        }
+    }
+});
 // ============================================================
 // SERVICE WORKER (required for Chrome install prompt)
 // ============================================================
