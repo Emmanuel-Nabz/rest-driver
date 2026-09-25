@@ -807,6 +807,19 @@ function formatMoney(amount) {
     }
     return c + ' ' + n.toFixed(2);
 }
+// Format a number as a specific currency (used for multi-currency totals)
+function formatCurrencyAmount(amount, currency) {
+    var n = parseFloat(amount) || 0;
+    var c = currency || CURRENCY;
+
+    if (c === 'UGX' || c === 'TZS' || c === 'RWF') {
+        return c + ' ' + Math.round(n).toLocaleString('en-US');
+    }
+    if (c === 'BD' || c === 'KWD' || c === 'OMR') {
+        return c + ' ' + n.toFixed(3);
+    }
+    return c + ' ' + n.toFixed(2);
+}
 
 // Per-order currency: uses the order's own restaurant_currency if present,
 // otherwise falls back to the driver's restaurant currency.
@@ -1549,18 +1562,34 @@ function renderHistory(orders) {
     var todayCount = 0;
     var todayCash = 0;
 
+     var todayCashByCurrency = {};
     orders.forEach(function(o) {
         var orderDate = new Date(o.created_at).toISOString().split('T')[0];
         if (orderDate === todayStr && o.status === 'Delivered') {
             todayCount++;
             var payment = (o.payment_method || '').toLowerCase();
             if (payment === 'cash on delivery' || payment === 'cash' || payment === 'cod') {
-                todayCash += parseFloat(o.total) || 0;
+                var c = (o && o.restaurant_currency) ? o.restaurant_currency : CURRENCY;
+                var n = parseFloat(o.total) || 0;
+                if (!todayCashByCurrency[c]) todayCashByCurrency[c] = 0;
+                todayCashByCurrency[c] += n;
             }
         }
     });
-        document.getElementById('todayCount').textContent = todayCount;
-    document.getElementById('todayCash').textContent = formatMoney(todayCash);
+    document.getElementById('todayCount').textContent = todayCount;
+
+    var todayKeys = Object.keys(todayCashByCurrency);
+    var todayCashEl = document.getElementById('todayCash');
+    if (todayKeys.length === 0) {
+        todayCashEl.textContent = formatCurrencyAmount(0, CURRENCY);
+    } else if (todayKeys.length === 1) {
+        todayCashEl.textContent = formatCurrencyAmount(todayCashByCurrency[todayKeys[0]], todayKeys[0]);
+    } else {
+        todayCashEl.textContent = todayKeys.map(function(c) {
+            return formatCurrencyAmount(todayCashByCurrency[c], c);
+        }).join(' · ');
+        todayCashEl.style.fontSize = '1.05em';
+    }
 
     // Empty state
     if (orders.length === 0) {
@@ -1680,16 +1709,38 @@ function renderOrders(orders) {
         return;
     }
 
-    // Total cash only counts CASH orders
-    var totalCash = 0;
+       // Group cash totals by currency — supports multi-restaurant drivers
+    var cashByCurrency = {};
     orders.forEach(function(o) {
         var payInfo = getPaymentInfo(o.payment_method);
         if (payInfo.isCash) {
-            totalCash += parseFloat(o.total) || 0;
+            var c = (o && o.restaurant_currency) ? o.restaurant_currency : CURRENCY;
+            var n = parseFloat(o.total) || 0;
+            if (!cashByCurrency[c]) cashByCurrency[c] = 0;
+            cashByCurrency[c] += n;
         }
     });
-        countEl.textContent = orders.length;
-    cashEl.textContent = formatMoney(totalCash);
+
+    countEl.textContent = orders.length;
+
+    // Format: "UGX 45,000 · BD 5.500" if multiple currencies, else just one
+    var currencyKeys = Object.keys(cashByCurrency);
+    if (currencyKeys.length === 0) {
+        cashEl.textContent = formatMoney(0);
+    } else if (currencyKeys.length === 1) {
+        var c1 = currencyKeys[0];
+        cashEl.textContent = formatCurrencyAmount(cashByCurrency[c1], c1);
+    } else {
+        cashEl.textContent = currencyKeys.map(function(c) {
+            return formatCurrencyAmount(cashByCurrency[c], c);
+        }).join(' · ');
+    }
+        // Shrink font if text is long (multi-currency)
+    if (currencyKeys.length > 1) {
+        cashEl.style.fontSize = '1.05em';
+    } else {
+        cashEl.style.fontSize = '';
+    }
 
     var html = '';
     orders.forEach(function(order) {
